@@ -1,0 +1,83 @@
+---
+title: "Jaymeen Gandhi"
+date: "12/8/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+$Predictive Analysis$
+```{r}
+require(tidyverse)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(forecast)
+
+bikeds = read_csv("D:/Into data mining, visulization(Prof.yegin)/nyc/nyc.csv")
+bike_ds = bikeds %>% select(Date,Trip_Duration_in_min)
+colnames(bike_ds)<-c("date","duration")
+bike_ds = bike_ds %>% group_by(date)%>%summarize(md=mean(duration))
+```
+```{r}
+bike_ds
+str(bike_ds)
+bike_ds$date <- strptime(bike_ds$date, "%Y-%m-%d" )
+bike_ds$date <- as.POSIXct(bike_ds$date)
+bike_ds$duration <- as.numeric(unlist(bike_ds$md))
+bike_ds
+```
+
+
+```{r}
+#To get the month and the year 
+bike_ds <- mutate(bike_ds, MonthYear = paste(year(date),formatC(month(date), width = 2, flag = "0")))
+
+#To get the week of the year
+bike_ds <- mutate(bike_ds, Week = week(date))
+
+#To seperate the year from the date
+bike_ds <- mutate(bike_ds, Year = year(date))
+
+bike_ds$Year <- as.factor(bike_ds$Year)
+str(bike_ds)
+```
+```{r}
+#duration on monthly basis
+bike_ds_month <- aggregate(bike_ds$duration, by = list(bike_ds$MonthYear), FUN = function(x) mean(x, na.rm=T))
+
+#plotting the observed flow of the duration throughout the period
+observed <- ts(bike_ds_month$x, frequency=19, start = c(2015, 9), end = c(2017, 9))
+
+plot(observed)
+
+```
+```{r}
+#decomposing the dataset into trend, seasonality and random(error)
+observed_monthly <- decompose(observed)
+plot(observed_monthly)
+```
+```{r}
+#The seasonality is plotted
+monthplot(observed)
+library(forecast)
+seasonplot(observed)
+```
+
+
+```{r}
+#Forecasting the duration of the bikes
+my_timeseries <- data.frame(duration = observed, as.numeric(time(observed)))
+names(my_timeseries) <- c("duration", "time")
+
+Mytimeseries <- tslm(duration~season+trend,my_timeseries)
+
+Forcast_timeseries <- forecast(Mytimeseries,h=20)
+
+autoplot(Forcast_timeseries)
+```
+
+
